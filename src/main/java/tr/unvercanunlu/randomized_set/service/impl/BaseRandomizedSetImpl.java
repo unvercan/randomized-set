@@ -12,16 +12,15 @@ import tr.unvercanunlu.randomized_set.service.RandomizedSet;
 
 public abstract class BaseRandomizedSetImpl<T> implements RandomizedSet<T> {
 
+  private final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
+
   // no need synchronized collections when read-write lock used appropriately
   private final List<T> list = new ArrayList<>(); // Collections.synchronizedList(new ArrayList<>())
   private final Map<T, Integer> map = new HashMap<>(); // new ConcurrentHashMap<>()
 
-  // read-write lock
-  private final ReentrantReadWriteLock readWriteLock = new ReentrantReadWriteLock();
-
   @Override
   public T getRandom() {
-    readWriteLock.readLock().lock();
+    lock.readLock().lock();
 
     try {
       if (map.isEmpty()) {
@@ -34,13 +33,13 @@ public abstract class BaseRandomizedSetImpl<T> implements RandomizedSet<T> {
       return list.get(index);
 
     } finally {
-      readWriteLock.readLock().unlock();
+      lock.readLock().unlock();
     }
   }
 
   @Override
   public void add(T item) {
-    readWriteLock.writeLock().lock();
+    lock.writeLock().lock();
 
     try {
       if (!map.containsKey(item)) {
@@ -50,13 +49,13 @@ public abstract class BaseRandomizedSetImpl<T> implements RandomizedSet<T> {
       }
 
     } finally {
-      readWriteLock.writeLock().unlock();
+      lock.writeLock().unlock();
     }
   }
 
   @Override
   public void remove(T item) {
-    readWriteLock.writeLock().lock();
+    lock.writeLock().lock();
 
     try {
       if (map.containsKey(item)) {
@@ -76,44 +75,44 @@ public abstract class BaseRandomizedSetImpl<T> implements RandomizedSet<T> {
       }
 
     } finally {
-      readWriteLock.writeLock().unlock();
+      lock.writeLock().unlock();
     }
   }
 
   @Override
   public int size() {
-    readWriteLock.readLock().lock();
+    lock.readLock().lock();
 
     try {
       return map.size();
 
     } finally {
-      readWriteLock.readLock().unlock();
+      lock.readLock().unlock();
     }
   }
 
   @Override
   public void clear() {
-    readWriteLock.writeLock().lock();
+    lock.writeLock().lock();
 
     try {
       list.clear();
       map.clear();
 
     } finally {
-      readWriteLock.writeLock().unlock();
+      lock.writeLock().unlock();
     }
   }
 
   @Override
   public boolean contains(T item) {
-    readWriteLock.readLock().lock();
+    lock.readLock().lock();
 
     try {
       return map.containsKey(item);
 
     } finally {
-      readWriteLock.readLock().unlock();
+      lock.readLock().unlock();
     }
   }
 
