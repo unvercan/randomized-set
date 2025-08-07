@@ -5,6 +5,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.concurrent.ThreadLocalRandom;
 import lombok.extern.slf4j.Slf4j;
@@ -24,7 +25,7 @@ public abstract class BaseRandomizedSetImpl<T> implements RandomizedSet<T> {
 
       log.error(message);
 
-      throw new IllegalStateException(message);
+      throw new NoSuchElementException(message);
     }
 
     int gapStart = 0;
