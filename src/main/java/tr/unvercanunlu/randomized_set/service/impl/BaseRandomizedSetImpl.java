@@ -1,119 +1,102 @@
 package tr.unvercanunlu.randomized_set.service.impl;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Random;
+import java.util.Objects;
 import java.util.concurrent.ThreadLocalRandom;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
-import tr.unvercanunlu.randomized_set.exception.EmptySetException;
+import lombok.extern.slf4j.Slf4j;
 import tr.unvercanunlu.randomized_set.service.RandomizedSet;
 
+@Slf4j
 public abstract class BaseRandomizedSetImpl<T> implements RandomizedSet<T> {
 
-  private final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
-
-  // no need synchronized collections when read-write lock used appropriately
-  private final List<T> list = new ArrayList<>(); // Collections.synchronizedList(new ArrayList<>())
-  private final Map<T, Integer> map = new HashMap<>(); // new ConcurrentHashMap<>()
+  // no need synchronized collections when all methods synchronized
+  private final List<T> itemList = new ArrayList<>(); // Collections.synchronizedList(new ArrayList<>())
+  private final Map<T, Integer> indexMap = new HashMap<>(); // new ConcurrentHashMap<>()
 
   @Override
-  public T getRandom() {
-    lock.readLock().lock();
+  public synchronized T getRandom() {
+    if (indexMap.isEmpty()) {
+      String message = "Set empty!";
 
-    try {
-      if (map.isEmpty()) {
-        throw new EmptySetException();
-      }
+      log.error(message);
 
-      Random random = ThreadLocalRandom.current();
-      int index = random.nextInt(0, list.size());
-
-      return list.get(index);
-
-    } finally {
-      lock.readLock().unlock();
+      throw new IllegalStateException(message);
     }
+
+    int gapStart = 0;
+    int gapEnd = itemList.size();
+
+    int randomIndex = ThreadLocalRandom.current()
+        .nextInt(gapStart, gapEnd);
+
+    return itemList.get(randomIndex);
   }
 
   @Override
-  public void add(T item) {
-    lock.writeLock().lock();
+  public synchronized void add(T item) {
+    if (indexMap.containsKey(item)) {
+      log.info("Set already contains item={}", Objects.toString(item, "null"));
 
-    try {
-      if (!map.containsKey(item)) {
-        list.add(item);
-        int itemIndex = list.size() - 1;
-        map.put(item, itemIndex);
-      }
-
-    } finally {
-      lock.writeLock().unlock();
+      return;
     }
+
+    itemList.add(item);
+
+    int itemIndex = itemList.size() - 1;
+
+    indexMap.put(item, itemIndex);
   }
 
   @Override
-  public void remove(T item) {
-    lock.writeLock().lock();
+  public synchronized void remove(T item) {
+    if (!indexMap.containsKey(item)) {
+      log.info("Set does not contain item={}", Objects.toString(item, "null"));
 
-    try {
-      if (map.containsKey(item)) {
-        int itemIndex = map.get(item);
-        int otherIndex = list.size() - 1;
-
-        if (itemIndex == otherIndex) {
-          list.remove(itemIndex);
-          map.remove(item);
-        } else {
-          T other = list.get(otherIndex);
-          list.set(itemIndex, other);
-          list.remove(otherIndex);
-          map.put(other, itemIndex);
-          map.remove(item);
-        }
-      }
-
-    } finally {
-      lock.writeLock().unlock();
+      return;
     }
+
+    Integer itemIndex = indexMap.get(item);
+
+    if (itemIndex == null) {
+      String message = "Internal problem: item index not found!";
+
+      log.error(message);
+
+      throw new IllegalStateException(message);
+    }
+
+    int lastIndex = itemList.size() - 1;
+
+    if (itemIndex != lastIndex) {
+      T lastItem = itemList.get(lastIndex);
+
+      Collections.swap(itemList, itemIndex, lastIndex);
+
+      indexMap.put(lastItem, itemIndex);
+    }
+
+    itemList.remove(lastIndex);
+    indexMap.remove(item);
   }
 
   @Override
-  public int size() {
-    lock.readLock().lock();
-
-    try {
-      return map.size();
-
-    } finally {
-      lock.readLock().unlock();
-    }
+  public synchronized int size() {
+    return indexMap.size();
   }
 
   @Override
-  public void clear() {
-    lock.writeLock().lock();
-
-    try {
-      list.clear();
-      map.clear();
-
-    } finally {
-      lock.writeLock().unlock();
-    }
+  public synchronized void clear() {
+    itemList.clear();
+    indexMap.clear();
   }
 
   @Override
-  public boolean contains(T item) {
-    lock.readLock().lock();
-
-    try {
-      return map.containsKey(item);
-
-    } finally {
-      lock.readLock().unlock();
-    }
+  public synchronized boolean contains(T item) {
+    return indexMap.containsKey(item);
   }
 
 }
