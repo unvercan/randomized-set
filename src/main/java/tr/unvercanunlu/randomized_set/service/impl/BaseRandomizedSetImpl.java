@@ -2,102 +2,160 @@ package tr.unvercanunlu.randomized_set.service.impl;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.NoSuchElementException;
-import java.util.Objects;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 import lombok.extern.slf4j.Slf4j;
 import tr.unvercanunlu.randomized_set.service.RandomizedSet;
 
 @Slf4j
 public abstract class BaseRandomizedSetImpl<T> implements RandomizedSet<T> {
 
-  // no need synchronized collections when all methods synchronized
-  private final List<T> itemList = new ArrayList<>(); // Collections.synchronizedList(new ArrayList<>())
-  private final Map<T, Integer> indexMap = new HashMap<>(); // new ConcurrentHashMap<>()
+  private final List<T> itemList = Collections.synchronizedList(new ArrayList<>());
+  private final ConcurrentMap<T, Integer> indexMap = new ConcurrentHashMap<>();
+
+  private final ReadWriteLock lock = new ReentrantReadWriteLock();
+
+  protected abstract boolean isItemValid(T item);
 
   @Override
-  public synchronized T getRandom() {
-    if (indexMap.isEmpty()) {
-      String message = "Set empty!";
+  public T getRandom() {
+    lock.readLock().lock();
+    try {
+      if (indexMap.isEmpty()) {
+        String message = "Set empty!";
+        log.error(message);
+        throw new NoSuchElementException(message);
+      }
 
+      int randomIndex = getRandomIndex();
+      log.debug("Item with index={} is selected randomly from the set.", randomIndex);
+
+      T randomItem = itemList.get(randomIndex);
+      log.info("item={} is retrieved from the set randomly.", randomItem);
+
+      return randomItem;
+    } finally {
+      lock.readLock().unlock();
+    }
+  }
+
+  @Override
+  public boolean add(T item) {
+    validateItem(item);
+
+    lock.writeLock().lock();
+    try {
+      if (indexMap.containsKey(item)) {
+        log.warn("Set already contains! item={}", item);
+        return false;
+      }
+
+      itemList.add(item);
+      int itemIndex = itemList.size() - 1;
+      log.debug("Item with index={} is added to the set.", itemIndex);
+
+      indexMap.put(item, itemIndex);
+      log.info("item={} is added to the set.", item);
+
+      return true;
+    } finally {
+      lock.writeLock().unlock();
+    }
+  }
+
+  @Override
+  public boolean remove(T item) {
+    validateItem(item);
+
+    lock.writeLock().lock();
+    try {
+      Integer itemIndex = indexMap.get(item);
+      if (itemIndex == null) {
+        log.warn("Set does not contain! item={}", item);
+        return false;
+      }
+
+      log.debug("item={} is at index={}", item, itemIndex);
+
+      int lastIndex = itemList.size() - 1;
+      if (itemIndex != lastIndex) {
+        T lastItem = itemList.get(lastIndex);
+        Collections.swap(itemList, itemIndex, lastIndex);
+        indexMap.put(lastItem, itemIndex);
+        log.debug("Item with index={} is swapped with item with index={}", itemIndex, lastIndex);
+      }
+
+      itemList.remove(lastIndex);
+      log.debug("The last item is removed.");
+
+      indexMap.remove(item);
+      log.info("item={} is removed from the set.", item);
+
+      return true;
+    } finally {
+      lock.writeLock().unlock();
+    }
+  }
+
+  @Override
+  public int size() {
+    lock.readLock().lock();
+    try {
+      int size = indexMap.size();
+      log.info("The set contains {} items.", size);
+
+      return size;
+    } finally {
+      lock.readLock().unlock();
+    }
+  }
+
+  @Override
+  public void clear() {
+    lock.writeLock().lock();
+    try {
+      itemList.clear();
+      indexMap.clear();
+      log.info("The set is cleared.");
+    } finally {
+      lock.writeLock().unlock();
+    }
+  }
+
+  @Override
+  public boolean contains(T item) {
+    lock.readLock().lock();
+    try {
+      boolean result = indexMap.containsKey(item);
+
+      if (result) {
+        log.info("The set contains item={}", item);
+      } else {
+        log.info("The set does not contain item={}", item);
+      }
+
+      return result;
+    } finally {
+      lock.readLock().unlock();
+    }
+  }
+
+  private int getRandomIndex() {
+    return ThreadLocalRandom.current()
+        .nextInt(itemList.size());
+  }
+
+  private void validateItem(T item) {
+    if (!isItemValid(item)) {
+      String message = "Item invalid! item=%s".formatted(item);
       log.error(message);
-
-      throw new NoSuchElementException(message);
+      throw new IllegalArgumentException(message);
     }
-
-    int gapStart = 0;
-    int gapEnd = itemList.size();
-
-    int randomIndex = ThreadLocalRandom.current()
-        .nextInt(gapStart, gapEnd);
-
-    return itemList.get(randomIndex);
-  }
-
-  @Override
-  public synchronized void add(T item) {
-    if (indexMap.containsKey(item)) {
-      log.info("Set already contains item={}", Objects.toString(item, "null"));
-
-      return;
-    }
-
-    itemList.add(item);
-
-    int itemIndex = itemList.size() - 1;
-
-    indexMap.put(item, itemIndex);
-  }
-
-  @Override
-  public synchronized void remove(T item) {
-    if (!indexMap.containsKey(item)) {
-      log.info("Set does not contain item={}", Objects.toString(item, "null"));
-
-      return;
-    }
-
-    Integer itemIndex = indexMap.get(item);
-
-    if (itemIndex == null) {
-      String message = "Internal problem: item index not found!";
-
-      log.error(message);
-
-      throw new IllegalStateException(message);
-    }
-
-    int lastIndex = itemList.size() - 1;
-
-    if (itemIndex != lastIndex) {
-      T lastItem = itemList.get(lastIndex);
-
-      Collections.swap(itemList, itemIndex, lastIndex);
-
-      indexMap.put(lastItem, itemIndex);
-    }
-
-    itemList.remove(lastIndex);
-    indexMap.remove(item);
-  }
-
-  @Override
-  public synchronized int size() {
-    return indexMap.size();
-  }
-
-  @Override
-  public synchronized void clear() {
-    itemList.clear();
-    indexMap.clear();
-  }
-
-  @Override
-  public synchronized boolean contains(T item) {
-    return indexMap.containsKey(item);
   }
 
 }

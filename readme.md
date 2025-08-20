@@ -1,54 +1,27 @@
-# Randomized Set
-
-An efficient, thread-safe Java implementation of a `RandomizedSet` data structure that supports:
-
-- `O(1)` average time complexity for:
-    - Insertion (`add`)
-    - Deletion (`remove`)
-    - Lookup (`contains`)
-    - Random element retrieval (`getRandom`)
+# Randomized Set (Java)
+Thread-safe **RandomizedSet** with O(1) `add`, `remove`, `contains`, `size`, and `getRandom`.
 
 ## Features
+- Constant-time operations  
+- Swap-remove trick for efficient deletion  
+- Thread-safe with `ReadWriteLock`  
+- Abstract validation via `isItemValid`  
 
-- Thread-safe: All public methods are synchronized
-- Uses `ArrayList` + `HashMap` for efficient operations
-- Logging support via SLF4J
-- Graceful handling of empty state and internal inconsistencies
-
-## Interface
-
+## Usage
 ```java
-interface RandomizedSet<T> {
-  void add(T item);
-  void remove(T item);
-  boolean contains(T item);
-  int size();
-  void clear();
-  T getRandom(); // Throws NoSuchElementException if empty
+public class DefaultRandomizedSet<T> extends BaseRandomizedSetImpl<T> {
+    @Override
+    protected boolean isItemValid(T item) {
+        return item != null;
+    }
 }
+
+RandomizedSet<Integer> set = new DefaultRandomizedSet<>();
+set.add(1);
+set.add(2);
+System.out.println(set.getRandom()); // e.g. 2
+set.remove(1);
 ````
 
-## Example Usage
-
-```java
-RandomizedSet<Integer> set = new RandomizedSetImpl<>();
-set.add(10);
-set.add(20);
-set.remove(10);
-int random = set.getRandom(); // returns 20
-```
-
-## Technologies
-
-* Java 21
-* Maven
-* SLF4J (logging)
-* JUnit 5 + Mockito (for testing)
-* JaCoCo (code coverage)
-* Lombok
-
-## Build
-
-```bash
-mvn clean install
-```
+## Complexity
+* `add`, `remove`, `contains`, `size`, `getRandom` → **O(1)**

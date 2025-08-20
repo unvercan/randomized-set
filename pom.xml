@@ -26,40 +26,16 @@
     <!-- dependency / plugin version -->
     <maven.compiler.version>3.14.0</maven.compiler.version>
     <lombok.version>1.18.38</lombok.version>
-    <junit.version>5.12.2</junit.version>
-    <mockito.version>5.17.0</mockito.version>
     <slf4j.version>2.0.17</slf4j.version>
-    <jacoco.version>0.8.10</jacoco.version>
+    <logback.classic.version>1.5.18</logback.classic.version>
   </properties>
 
   <dependencies>
-    <!-- junit -->
-    <dependency>
-      <groupId>org.junit.jupiter</groupId>
-      <artifactId>junit-jupiter</artifactId>
-      <version>${junit.version}</version>
-      <scope>test</scope>
-    </dependency>
-
-    <!-- begin - mockito -->
-    <dependency>
-      <groupId>org.mockito</groupId>
-      <artifactId>mockito-core</artifactId>
-      <version>${mockito.version}</version>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.mockito</groupId>
-      <artifactId>mockito-junit-jupiter</artifactId>
-      <version>${mockito.version}</version>
-      <scope>test</scope>
-    </dependency>
-    <!-- end - mockito -->
-
     <!-- lombok -->
     <dependency>
       <groupId>org.projectlombok</groupId>
       <artifactId>lombok</artifactId>
+      <scope>provided</scope>
       <version>${lombok.version}</version>
       <optional>true</optional>
     </dependency>
@@ -69,6 +45,13 @@
       <groupId>org.slf4j</groupId>
       <artifactId>slf4j-api</artifactId>
       <version>${slf4j.version}</version>
+    </dependency>
+
+    <!-- logback -->
+    <dependency>
+      <groupId>ch.qos.logback</groupId>
+      <artifactId>logback-classic</artifactId>
+      <version>${logback.classic.version}</version>
     </dependency>
   </dependencies>
 
@@ -90,28 +73,6 @@
             </path>
           </annotationProcessorPaths>
         </configuration>
-      </plugin>
-
-      <!-- code coverage -->
-      <plugin>
-        <groupId>org.jacoco</groupId>
-        <artifactId>jacoco-maven-plugin</artifactId>
-        <version>${jacoco.version}</version>
-        <executions>
-          <execution>
-            <id>prepare-agent</id>
-            <goals>
-              <goal>prepare-agent</goal>
-            </goals>
-          </execution>
-          <execution>
-            <id>report</id>
-            <phase>verify</phase>
-            <goals>
-              <goal>report</goal>
-            </goals>
-          </execution>
-        </executions>
       </plugin>
     </plugins>
   </build>
